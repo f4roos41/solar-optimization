@@ -1,0 +1,75 @@
+# Global Baseline Data Pipeline Configuration
+
+# Paths
+paths:
+  raw: ./data/raw
+  processed: ./data/processed
+  cog: ./data/cog
+
+# Dataset Configuration
+datasets:
+  srtm:
+    enabled: true
+    source: "CGIAR-CSI SRTM 90m v4.1"
+    url: "https://srtm.csi.cgiar.org/"
+    resolution: 90  # meters
+    coverage: "Global (60N to 56S)"
+
+  esa_worldcover:
+    enabled: true
+    source: "ESA WorldCover 10m"
+    url: "https://esa-worldcover.s3.eu-central-1.amazonaws.com/v200/2021/"
+    resolution: 10  # meters
+    year: 2021
+
+  nrel_nsrdb:
+    enabled: true
+    source: "NREL NSRDB"
+    api_url: "https://developer.nrel.gov/api/nsrdb/"
+    resolution: 4000  # meters (4 km)
+    years: [2020, 2021, 2022]
+    layers:
+      - ghi
+      - dni
+      - dhi
+
+  osm:
+    enabled: true
+    source: "OpenStreetMap (Geofabrik)"
+    url: "https://download.geofabrik.de/"
+    features:
+      - roads
+      - power_lines
+      - substations
+
+# Processing Parameters
+processing:
+  target_crs: "EPSG:4326"  # WGS84
+  resampling_method: "bilinear"
+  compression: "DEFLATE"
+  tiled: true
+  blocksize: 512
+  overviews: [2, 4, 8, 16, 32]
+
+  proximity:
+    resolution: 1000  # meters (1 km resolution for proximity rasters)
+    max_distance: 50000  # meters (50 km)
+
+# S3 Configuration
+s3:
+  bucket: "solar-platform-data-lake"
+  prefix: ""
+  region: "us-east-1"
+  access_key_id: "${AWS_ACCESS_KEY_ID}"
+  secret_access_key: "${AWS_SECRET_ACCESS_KEY}"
+
+# Database Configuration (for OSM vector data)
+database_url: "postgresql://solar_user:solar_password@localhost:5432/solar_platform"
+
+# Error Handling
+stop_on_error: true
+retry_attempts: 3
+retry_delay: 60  # seconds
+
+# Logging
+log_level: "INFO"

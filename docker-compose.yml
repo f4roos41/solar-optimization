@@ -1,0 +1,144 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgis/postgis:15-3.3
+    container_name: solar-platform-db
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-solar_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-solar_password}
+      POSTGRES_DB: ${POSTGRES_DB:-solar_platform}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./infrastructure/docker/postgres/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - solar-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U solar_user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.12-management
+    container_name: solar-platform-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"   # AMQP
+      - "15672:15672" # Management UI
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - solar-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: solar-platform-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - solar-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: solar-platform-api
+    command: uvicorn api.main:app --host 0.0.0.0 --port 8000 --reload
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - RABBITMQ_URL=${RABBITMQ_URL}
+      - S3_DATA_LAKE_BUCKET=${S3_DATA_LAKE_BUCKET}
+      - S3_RESULTS_BUCKET=${S3_RESULTS_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./backend:/app
+      - /tmp:/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - solar-network
+    profiles:
+      - full
+
+  worker:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: solar-platform-worker
+    command: celery -A workers.celery_app worker --loglevel=info --concurrency=4
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - CELERY_BROKER_URL=${CELERY_BROKER_URL}
+      - CELERY_RESULT_BACKEND=${CELERY_RESULT_BACKEND}
+      - S3_DATA_LAKE_BUCKET=${S3_DATA_LAKE_BUCKET}
+      - S3_RESULTS_BUCKET=${S3_RESULTS_BUCKET}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - GDAL_CACHEMAX=${GDAL_CACHEMAX:-512}
+    volumes:
+      - ./backend:/app
+      - /tmp:/tmp
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+    networks:
+      - solar-network
+    profiles:
+      - full
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile.dev
+    container_name: solar-platform-frontend
+    environment:
+      - REACT_APP_API_URL=${REACT_APP_API_URL}
+      - REACT_APP_MAPBOX_TOKEN=${REACT_APP_MAPBOX_TOKEN}
+      - REACT_APP_CESIUM_ION_TOKEN=${REACT_APP_CESIUM_ION_TOKEN}
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./frontend:/app
+      - /app/node_modules
+    depends_on:
+      - api
+    networks:
+      - solar-network
+    profiles:
+      - full
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+  redis_data:
+
+networks:
+  solar-network:
+    driver: bridge
