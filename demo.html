@@ -1,0 +1,529 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Solar Energy Planning Platform - Demo</title>
+    <link href="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v3.0.1/mapbox-gl.js"></script>
+    <script src="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.js"></script>
+    <link rel="stylesheet" href="https://api.mapbox.com/mapbox-gl-js/plugins/mapbox-gl-draw/v1.4.3/mapbox-gl-draw.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+        }
+
+        header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+
+        header p {
+            font-size: 0.875rem;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+        }
+
+        .container {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .sidebar {
+            width: 320px;
+            background: #f8f9fa;
+            padding: 1.5rem;
+            overflow-y: auto;
+            border-right: 1px solid #e0e0e0;
+        }
+
+        .map-container {
+            flex: 1;
+            position: relative;
+        }
+
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+
+        .section {
+            background: white;
+            border-radius: 8px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .section h2 {
+            font-size: 1.125rem;
+            margin-bottom: 1rem;
+            color: #333;
+        }
+
+        .weight-slider {
+            margin-bottom: 1.25rem;
+        }
+
+        .weight-slider label {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 0.5rem;
+            font-size: 0.875rem;
+            color: #555;
+        }
+
+        .weight-slider .value {
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #e0e0e0;
+            outline: none;
+            -webkit-appearance: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 18px;
+            height: 18px;
+            border-radius: 50%;
+            background: #667eea;
+            cursor: pointer;
+            border: none;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+
+        .checkbox-group {
+            margin-bottom: 0.75rem;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            font-size: 0.875rem;
+            color: #555;
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 0.5rem;
+            width: 16px;
+            height: 16px;
+            cursor: pointer;
+        }
+
+        .btn {
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.875rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+
+        .btn-secondary {
+            background: white;
+            color: #667eea;
+            border: 2px solid #667eea;
+            margin-top: 0.5rem;
+        }
+
+        .btn-secondary:hover {
+            background: #f0f0f0;
+        }
+
+        .instructions {
+            background: #e3f2fd;
+            border-left: 4px solid #2196F3;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            color: #1565C0;
+        }
+
+        .info-panel {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: white;
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+            max-width: 300px;
+            z-index: 1;
+        }
+
+        .info-panel h3 {
+            font-size: 0.875rem;
+            color: #333;
+            margin-bottom: 0.5rem;
+        }
+
+        .info-panel p {
+            font-size: 0.75rem;
+            color: #666;
+            line-height: 1.5;
+        }
+
+        .stats {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+            margin-top: 1rem;
+        }
+
+        .stat {
+            background: #f5f5f5;
+            padding: 0.75rem;
+            border-radius: 6px;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 0.75rem;
+            color: #666;
+            margin-bottom: 0.25rem;
+        }
+
+        .stat-value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .demo-badge {
+            background: #FFC107;
+            color: #000;
+            padding: 0.25rem 0.75rem;
+            border-radius: 4px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            display: inline-block;
+            margin-left: 1rem;
+        }
+
+        .loading {
+            display: none;
+            text-align: center;
+            padding: 1rem;
+            color: #666;
+        }
+
+        .loading.active {
+            display: block;
+        }
+
+        .spinner {
+            border: 3px solid #f3f3f3;
+            border-top: 3px solid #667eea;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 0.5rem;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>
+            🌞 Global Solar Energy Planning Platform
+            <span class="demo-badge">DEMO MODE</span>
+        </h1>
+        <p>Next-generation solar site selection using Multi-Criteria Decision Analysis</p>
+    </header>
+
+    <div class="container">
+        <div class="sidebar">
+            <div class="instructions">
+                <strong>🎯 How to Use:</strong><br>
+                1. Use the polygon tool (📐) in the map to draw an area<br>
+                2. Adjust analysis weights below<br>
+                3. Click "Run Analysis" to see results
+            </div>
+
+            <div class="section">
+                <h2>📊 Analysis Weights (MCDA)</h2>
+                <p style="font-size: 0.8rem; color: #666; margin-bottom: 1rem;">
+                    Adjust how important each factor is (must total 100%)
+                </p>
+
+                <div class="weight-slider">
+                    <label>
+                        <span>☀️ Solar Irradiance</span>
+                        <span class="value" id="ghi-value">40%</span>
+                    </label>
+                    <input type="range" id="ghi" min="0" max="100" value="40">
+                </div>
+
+                <div class="weight-slider">
+                    <label>
+                        <span>⛰️ Terrain Slope</span>
+                        <span class="value" id="slope-value">25%</span>
+                    </label>
+                    <input type="range" id="slope" min="0" max="100" value="25">
+                </div>
+
+                <div class="weight-slider">
+                    <label>
+                        <span>⚡ Grid Proximity</span>
+                        <span class="value" id="grid-value">20%</span>
+                    </label>
+                    <input type="range" id="grid" min="0" max="100" value="20">
+                </div>
+
+                <div class="weight-slider">
+                    <label>
+                        <span>🛣️ Road Proximity</span>
+                        <span class="value" id="road-value">15%</span>
+                    </label>
+                    <input type="range" id="road" min="0" max="100" value="15">
+                </div>
+
+                <div style="text-align: center; font-size: 0.875rem; padding: 0.75rem; background: #f5f5f5; border-radius: 4px;">
+                    Total: <strong id="total-weight">100%</strong>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🚫 Constraints</h2>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" checked> Exclude slopes > 10°
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" checked> Exclude urban areas
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" checked> Exclude water bodies
+                    </label>
+                </div>
+                <div class="checkbox-group">
+                    <label>
+                        <input type="checkbox" checked> Max 10km from grid
+                    </label>
+                </div>
+            </div>
+
+            <button class="btn btn-primary" onclick="runAnalysis()">
+                🚀 Run Analysis
+            </button>
+
+            <button class="btn btn-secondary" onclick="exportResults()">
+                📥 Export Results
+            </button>
+
+            <div class="loading" id="loading">
+                <div class="spinner"></div>
+                <div>Processing analysis...</div>
+            </div>
+
+            <div class="section" style="margin-top: 1rem;">
+                <h2>📈 Statistics</h2>
+                <div class="stats">
+                    <div class="stat">
+                        <div class="stat-label">Area</div>
+                        <div class="stat-value" id="stat-area">0 km²</div>
+                    </div>
+                    <div class="stat">
+                        <div class="stat-label">Suitable</div>
+                        <div class="stat-value" id="stat-suitable">0%</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="map-container">
+            <div id="map"></div>
+            <div class="info-panel">
+                <h3>ℹ️ About This Demo</h3>
+                <p>
+                    This is a demonstration of the Solar Planning Platform interface.
+                    In the full version, the map connects to real global datasets including:
+                </p>
+                <ul style="font-size: 0.75rem; color: #666; margin-top: 0.5rem; padding-left: 1.25rem;">
+                    <li>NREL solar irradiance data</li>
+                    <li>SRTM terrain data</li>
+                    <li>ESA land cover data</li>
+                    <li>OpenStreetMap infrastructure</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize map (using public token for demo)
+        mapboxgl.accessToken = 'pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/satellite-streets-v12',
+            center: [-118.25, 34.05], // Los Angeles
+            zoom: 9
+        });
+
+        // Add drawing controls
+        const draw = new MapboxDraw({
+            displayControlsDefault: false,
+            controls: {
+                polygon: true,
+                trash: true
+            },
+            defaultMode: 'draw_polygon'
+        });
+        map.addControl(draw);
+
+        // Add navigation controls
+        map.addControl(new mapboxgl.NavigationControl());
+
+        // Weight sliders
+        const sliders = ['ghi', 'slope', 'grid', 'road'];
+        sliders.forEach(id => {
+            const slider = document.getElementById(id);
+            const valueDisplay = document.getElementById(id + '-value');
+
+            slider.addEventListener('input', function() {
+                valueDisplay.textContent = this.value + '%';
+                updateTotal();
+            });
+        });
+
+        function updateTotal() {
+            const total = sliders.reduce((sum, id) => {
+                return sum + parseInt(document.getElementById(id).value);
+            }, 0);
+
+            const totalDisplay = document.getElementById('total-weight');
+            totalDisplay.textContent = total + '%';
+            totalDisplay.style.color = total === 100 ? '#4CAF50' : '#f44336';
+        }
+
+        // Handle drawing
+        map.on('draw.create', updateArea);
+        map.on('draw.update', updateArea);
+        map.on('draw.delete', function() {
+            document.getElementById('stat-area').textContent = '0 km²';
+        });
+
+        function updateArea(e) {
+            const data = draw.getAll();
+            if (data.features.length > 0) {
+                const area = turf.area(data) / 1000000; // Convert to km²
+                document.getElementById('stat-area').textContent = area.toFixed(1) + ' km²';
+            }
+        }
+
+        function runAnalysis() {
+            const total = sliders.reduce((sum, id) => {
+                return sum + parseInt(document.getElementById(id).value);
+            }, 0);
+
+            if (total !== 100) {
+                alert('⚠️ Weights must total 100%! Currently: ' + total + '%');
+                return;
+            }
+
+            const data = draw.getAll();
+            if (data.features.length === 0) {
+                alert('⚠️ Please draw an area on the map first!');
+                return;
+            }
+
+            // Show loading
+            document.getElementById('loading').classList.add('active');
+
+            // Simulate processing
+            setTimeout(() => {
+                document.getElementById('loading').classList.remove('active');
+
+                // Simulate results
+                const suitable = Math.floor(Math.random() * 40) + 30;
+                document.getElementById('stat-suitable').textContent = suitable + '%';
+
+                alert('✅ Analysis Complete!\n\n' +
+                      '📊 Results:\n' +
+                      '• Total Area: ' + document.getElementById('stat-area').textContent + '\n' +
+                      '• Suitable Area: ' + suitable + '%\n' +
+                      '• Mean Suitability: ' + (Math.random() * 30 + 60).toFixed(1) + '/100\n\n' +
+                      '💡 In the full version, you would see:\n' +
+                      '• Color-coded suitability heatmap\n' +
+                      '• 3D terrain visualization\n' +
+                      '• Detailed statistics\n' +
+                      '• Exportable GeoTIFF and PDF reports');
+            }, 2000);
+        }
+
+        function exportResults() {
+            alert('📥 Export Options:\n\n' +
+                  '• GeoTIFF (for GIS software)\n' +
+                  '• Shapefile (vector data)\n' +
+                  '• PDF Report (investment-grade)\n' +
+                  '• CSV Statistics\n\n' +
+                  '💡 This feature requires the full backend to be running.');
+        }
+
+        // Add Turf.js for area calculation
+        const script = document.createElement('script');
+        script.src = 'https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js';
+        document.head.appendChild(script);
+    </script>
+</body>
+</html>
